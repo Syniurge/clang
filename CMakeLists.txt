@@ -59,7 +59,7 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
   list(GET CONFIG_OUTPUT 6 LLVM_BUILD_MODE)
 
   # CALYPSO additional check
-  if(${CMAKE_BUILD_TYPE} STREQUAL "Debug" AND NOT ${LLVM_BUILD_MODE} STREQUAL "Debug")
+  if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug" AND NOT "${LLVM_BUILD_MODE}" STREQUAL "Debug")
     message(FATAL_ERROR "A Clang Debug build requires LLVM libraries built in Debug mode." )
   endif()
 
