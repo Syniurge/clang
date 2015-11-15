@@ -2274,7 +2274,9 @@ public:
                   ReturnValueSlot ReturnValue,
                   const CallArgList &Args,
                   const Decl *TargetDecl = nullptr,
-                  llvm::Instruction **callOrInvoke = nullptr);
+                  llvm::Instruction **callOrInvoke = nullptr,
+                  llvm::BasicBlock *InvokeDest = nullptr, // CALYPSO
+                  llvm::BasicBlock *Cont = nullptr);
 
   RValue EmitCall(QualType FnType, llvm::Value *Callee, const CallExpr *E,
                   ReturnValueSlot ReturnValue,
