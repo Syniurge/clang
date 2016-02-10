@@ -3318,6 +3318,8 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
     CS = Builder.CreateInvoke(Callee, Cont, InvokeDest, IRCallArgs);
     if (emitCont)
         EmitBlock(Cont);
+    else
+        Builder.SetInsertPoint(Cont); // CALYPSO
   }
   if (callOrInvoke)
     *callOrInvoke = CS.getInstruction();
