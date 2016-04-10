@@ -26,6 +26,7 @@
 #include "clang/Lex/PreprocessingRecord.h"
 #include "clang/Sema/CodeCompleteConsumer.h"
 #include "clang/Serialization/ASTBitCodes.h"
+#include "clang/Serialization/ASTReader.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
@@ -46,7 +47,6 @@ namespace llvm {
 namespace clang {
 class Sema;
 class ASTContext;
-class ASTReader;
 class CodeCompleteConsumer;
 class CompilerInvocation;
 class CompilerInstance;
@@ -104,6 +104,9 @@ private:
   /// \brief The AST consumer that received information about the translation
   /// unit as it was parsed or loaded.
   std::unique_ptr<ASTConsumer> Consumer;
+
+  // CALYPSO
+  std::unique_ptr<ASTConsumer> CustomConsumer;
 
   /// \brief The semantic analysis object used to type-check the translation
   /// unit.
@@ -724,7 +727,8 @@ public:
       const FileSystemOptions &FileSystemOpts, bool OnlyLocalDecls = false,
       ArrayRef<RemappedFile> RemappedFiles = None,
       bool CaptureDiagnostics = false, bool AllowPCHWithCompilerErrors = false,
-      bool UserFilesAreVolatile = false);
+      bool UserFilesAreVolatile = false,
+      ASTConsumer *Consumer = nullptr, ASTReader::ASTReadResult *ReadResult = nullptr);
 
 private:
   /// \brief Helper function for \c LoadFromCompilerInvocation() and
@@ -772,7 +776,8 @@ public:
       bool PrecompilePreamble = false, bool CacheCodeCompletionResults = false,
       bool IncludeBriefCommentsInCodeCompletion = false,
       bool UserFilesAreVolatile = false,
-      std::unique_ptr<ASTUnit> *ErrAST = nullptr);
+      std::unique_ptr<ASTUnit> *ErrAST = nullptr,
+      ASTConsumer *CustomConsumer = nullptr); // CALYPSO
 
   /// LoadFromCompilerInvocation - Create an ASTUnit from a source file, via a
   /// CompilerInvocation object.
@@ -791,7 +796,8 @@ public:
       bool PrecompilePreamble = false, TranslationUnitKind TUKind = TU_Complete,
       bool CacheCodeCompletionResults = false,
       bool IncludeBriefCommentsInCodeCompletion = false,
-      bool UserFilesAreVolatile = false);
+      bool UserFilesAreVolatile = false,
+      ASTConsumer *CustomConsumer = nullptr); // CALYPSO
 
   /// LoadFromCommandLine - Create an ASTUnit from a vector of command line
   /// arguments, which must specify exactly one source file.
