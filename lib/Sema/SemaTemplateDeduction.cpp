@@ -4148,7 +4148,8 @@ AddImplicitObjectParameterType(ASTContext &Context,
 
 /// \brief Determine whether the function template \p FT1 is at least as
 /// specialized as \p FT2.
-static bool isAtLeastAsSpecializedAs(Sema &S,
+namespace clang { // CALYPSO
+bool isAtLeastAsSpecializedAs(Sema &S,
                                      SourceLocation Loc,
                                      FunctionTemplateDecl *FT1,
                                      FunctionTemplateDecl *FT2,
@@ -4294,6 +4295,7 @@ static bool isAtLeastAsSpecializedAs(Sema &S,
       return false;
 
   return true;
+}
 }
 
 /// \brief Determine whether this a function template whose parameter-type-list
