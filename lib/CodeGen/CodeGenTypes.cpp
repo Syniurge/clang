@@ -762,3 +762,13 @@ bool CodeGenTypes::isZeroInitializable(QualType T) {
 bool CodeGenTypes::isZeroInitializable(const RecordDecl *RD) {
   return getCGRecordLayout(RD).isZeroInitializable();
 }
+
+// CALYPSO
+void CodeGenTypes::swapTypeCache(llvm::DenseMap< const Type*, CGRecordLayout* >& CGRecordLayouts,
+                                llvm::DenseMap< const Type*, llvm::StructType* >& RecordDeclTypes,
+                                llvm::DenseMap< const Type*, llvm::Type* >& TypeCache)
+{
+    this->CGRecordLayouts.swap(CGRecordLayouts);
+    this->RecordDeclTypes.swap(RecordDeclTypes);
+    this->TypeCache.swap(TypeCache);
+}
