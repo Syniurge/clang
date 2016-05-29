@@ -16,7 +16,8 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
       "--libdir"
       "--includedir"
       "--prefix"
-      "--src-root")
+      "--src-root"
+      "--build-mode")
     execute_process(
       COMMAND ${CONFIG_COMMAND}
       RESULT_VARIABLE HAD_ERROR
@@ -41,6 +42,12 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
   list(GET CONFIG_OUTPUT 3 INCLUDE_DIR)
   list(GET CONFIG_OUTPUT 4 LLVM_OBJ_ROOT)
   list(GET CONFIG_OUTPUT 5 MAIN_SRC_DIR)
+  list(GET CONFIG_OUTPUT 6 LLVM_BUILD_MODE)
+
+  # CALYPSO additional check
+  if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug" AND NOT "${LLVM_BUILD_MODE}" STREQUAL "Debug")
+    message(FATAL_ERROR "A Clang Debug build requires LLVM libraries built in Debug mode." )
+  endif()
 
   if(NOT MSVC_IDE)
     set(LLVM_ENABLE_ASSERTIONS ${ENABLE_ASSERTIONS}
