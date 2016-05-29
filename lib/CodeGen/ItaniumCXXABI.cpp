@@ -3580,11 +3580,14 @@ namespace {
   };
 }
 
+namespace clang {
+namespace CodeGen {
+
 /// Emits a call to __cxa_begin_catch and enters a cleanup to call
 /// __cxa_end_catch.
 ///
 /// \param EndMightThrow - true if __cxa_end_catch might throw
-static llvm::Value *CallBeginCatch(CodeGenFunction &CGF,
+llvm::Value *CallBeginCatch(CodeGenFunction &CGF,
                                    llvm::Value *Exn,
                                    bool EndMightThrow) {
   llvm::CallInst *call =
@@ -3597,15 +3600,14 @@ static llvm::Value *CallBeginCatch(CodeGenFunction &CGF,
 
 /// A "special initializer" callback for initializing a catch
 /// parameter during catch initialization.
-static void InitCatchParam(CodeGenFunction &CGF,
-                           const VarDecl &CatchParam,
+void InitCatchParam(CodeGenFunction &CGF,
+                           llvm::Value *Exn, // CALYPSO
+                           QualType CatchParamTy,
+                           const Expr *CatchParamInit,
                            Address ParamAddr,
                            SourceLocation Loc) {
-  // Load the exception from where the landing pad saved it.
-  llvm::Value *Exn = CGF.getExceptionFromSlot();
-
   CanQualType CatchType =
-    CGF.CGM.getContext().getCanonicalType(CatchParam.getType());
+    CGF.CGM.getContext().getCanonicalType(CatchParamTy);
   llvm::Type *LLVMCatchTy = CGF.ConvertTypeForMem(CatchType);
 
   // If we're catching by reference, we can just cast the object
@@ -3729,7 +3731,7 @@ static void InitCatchParam(CodeGenFunction &CGF,
 
   // Check for a copy expression.  If we don't have a copy expression,
   // that means a trivial copy is okay.
-  const Expr *copyExpr = CatchParam.getInit();
+  const Expr *copyExpr = CatchParamInit;
   if (!copyExpr) {
     llvm::Value *rawAdjustedExn = CallBeginCatch(CGF, Exn, true);
     Address adjustedExn(CGF.Builder.CreateBitCast(rawAdjustedExn, PtrTy),
@@ -3751,7 +3753,7 @@ static void InitCatchParam(CodeGenFunction &CGF,
   // Find it and map it to the adjusted expression.
   CodeGenFunction::OpaqueValueMapping
     opaque(CGF, OpaqueValueExpr::findInCopyConstruct(copyExpr),
-           CGF.MakeAddrLValue(adjustedExn, CatchParam.getType()));
+           CGF.MakeAddrLValue(adjustedExn, CatchParamTy));
 
   // Call the copy ctor in a terminate scope.
   CGF.EHStack.pushTerminate();
@@ -3771,6 +3773,22 @@ static void InitCatchParam(CodeGenFunction &CGF,
 
   // Finally we can call __cxa_begin_catch.
   CallBeginCatch(CGF, Exn, true);
+}
+
+}
+}
+
+static void InitCatchParam(CodeGenFunction &CGF,
+                           const VarDecl &CatchParam,
+                           Address ParamAddr,
+                           SourceLocation Loc) {
+  // Load the exception from where the landing pad saved it.
+  llvm::Value *Exn = CGF.getExceptionFromSlot();
+
+  QualType CatchParamTy = CatchParam.getType();
+  const Expr *CatchParamInit = CatchParam.getInit();
+
+  InitCatchParam(CGF, Exn, CatchParamTy, CatchParamInit, ParamAddr, Loc);
 }
 
 /// Begins a catch statement by initializing the catch variable and
