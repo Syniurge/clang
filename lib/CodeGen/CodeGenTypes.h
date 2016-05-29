@@ -342,6 +342,10 @@ public:
   void addRecordTypeName(const RecordDecl *RD, llvm::StructType *Ty,
                          StringRef suffix);
   
+  // CALYPSO HACK for non-separate compilation
+  void swapTypeCache(llvm::DenseMap<const Type*, CGRecordLayout *>& CGRecordLayouts,
+                llvm::DenseMap<const Type*, llvm::StructType *>& RecordDeclTypes,
+                llvm::DenseMap<const Type *, llvm::Type *>& TypeCache);
 
 public:  // These are internal details of CGT that shouldn't be used externally.
   /// ConvertRecordDeclType - Lay out a tagged decl type like struct or union.
