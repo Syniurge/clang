@@ -655,7 +655,8 @@ std::unique_ptr<ASTUnit> ASTUnit::LoadFromASTFile(
     const FileSystemOptions &FileSystemOpts, bool UseDebugInfo,
     bool OnlyLocalDecls, ArrayRef<RemappedFile> RemappedFiles,
     bool CaptureDiagnostics, bool AllowPCHWithCompilerErrors,
-    bool UserFilesAreVolatile) {
+    bool UserFilesAreVolatile, ASTConsumer *Consumer,
+    ASTReader::ASTReadResult* ReadResult) {  // CALYPSO
   std::unique_ptr<ASTUnit> AST(new ASTUnit(true));
 
   // Recover resources if we crash before exiting this method.
@@ -725,8 +726,11 @@ std::unique_ptr<ASTUnit> ASTUnit::LoadFromASTFile(
   // eagerly-deserialized declarations may use it.
   Context.setExternalSource(AST->Reader);
 
-  switch (AST->Reader->ReadAST(Filename, serialization::MK_MainFile,
-                          SourceLocation(), ASTReader::ARR_None)) {
+  auto ASTReadResult = AST->Reader->ReadAST(Filename, serialization::MK_MainFile,
+                          SourceLocation(), ASTReader::ARR_None);
+  if (ReadResult)
+      *ReadResult = ASTReadResult; // CALYPSO
+  switch (ASTReadResult) {
   case ASTReader::Success:
     break;
 
@@ -745,7 +749,7 @@ std::unique_ptr<ASTUnit> ASTUnit::LoadFromASTFile(
   PP.setCounterValue(Counter);
 
   // Create an AST consumer, even though it isn't used.
-  AST->Consumer.reset(new ASTConsumer);
+  AST->Consumer.reset(Consumer ? Consumer : new ASTConsumer); // CALYPSO
   
   // Create a semantic analysis object and tell the AST reader about it.
   AST->TheSema.reset(new Sema(PP, Context, *AST->Consumer));
@@ -877,18 +881,28 @@ public:
 class TopLevelDeclTrackerAction : public ASTFrontendAction {
 public:
   ASTUnit &Unit;
+  std::unique_ptr<ASTConsumer> CustomConsumer; // CALYPSO
 
   std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
                                                  StringRef InFile) override {
     CI.getPreprocessor().addPPCallbacks(
         llvm::make_unique<MacroDefinitionTrackerPPCallbacks>(
                                            Unit.getCurrentTopLevelHashValue()));
-    return llvm::make_unique<TopLevelDeclTrackerConsumer>(
-        Unit, Unit.getCurrentTopLevelHashValue());
+    if (CustomConsumer) {
+        std::vector<std::unique_ptr<ASTConsumer>> Consumers;
+        Consumers.push_back(std::move(CustomConsumer)); // CALYPSO
+        Consumers.push_back(llvm::make_unique<TopLevelDeclTrackerConsumer>(
+            Unit, Unit.getCurrentTopLevelHashValue()));
+        return llvm::make_unique<MultiplexConsumer>(std::move(Consumers));
+    }
+    else
+        return llvm::make_unique<TopLevelDeclTrackerConsumer>(
+            Unit, Unit.getCurrentTopLevelHashValue());
   }
 
 public:
-  TopLevelDeclTrackerAction(ASTUnit &_Unit) : Unit(_Unit) {}
+  TopLevelDeclTrackerAction(ASTUnit &_Unit, std::unique_ptr<ASTConsumer> CustomConsumer)
+                : Unit(_Unit), CustomConsumer(std::move(CustomConsumer)) {}
 
   bool hasCodeCompletionSupport() const override { return false; }
   TranslationUnitKind getTranslationUnitKind() override {
@@ -1129,7 +1143,7 @@ bool ASTUnit::Parse(std::shared_ptr<PCHContainerOperations> PCHContainerOps,
   }
 
   std::unique_ptr<TopLevelDeclTrackerAction> Act(
-      new TopLevelDeclTrackerAction(*this));
+      new TopLevelDeclTrackerAction(*this, std::move(CustomConsumer)));
 
   // Recover resources if we crash before exiting this method.
   llvm::CrashRecoveryContextCleanupRegistrar<TopLevelDeclTrackerAction>
@@ -1728,7 +1742,8 @@ ASTUnit *ASTUnit::LoadFromCompilerInvocationAction(
     bool OnlyLocalDecls, bool CaptureDiagnostics,
     unsigned PrecompilePreambleAfterNParses, bool CacheCodeCompletionResults,
     bool IncludeBriefCommentsInCodeCompletion, bool UserFilesAreVolatile,
-    std::unique_ptr<ASTUnit> *ErrAST) {
+    std::unique_ptr<ASTUnit> *ErrAST,
+    ASTConsumer *CustomConsumer) { // CALYPSO
   assert(CI && "A CompilerInvocation is required");
 
   std::unique_ptr<ASTUnit> OwnAST;
@@ -1816,7 +1831,7 @@ ASTUnit *ASTUnit::LoadFromCompilerInvocationAction(
 
   std::unique_ptr<TopLevelDeclTrackerAction> TrackerAct;
   if (!Act) {
-    TrackerAct.reset(new TopLevelDeclTrackerAction(*AST));
+    TrackerAct.reset(new TopLevelDeclTrackerAction(*AST, std::unique_ptr<ASTConsumer>(CustomConsumer))); // CALYPSO
     Act = TrackerAct.get();
   }
 
@@ -1839,6 +1854,8 @@ ASTUnit *ASTUnit::LoadFromCompilerInvocationAction(
     std::vector<std::unique_ptr<ASTConsumer>> Consumers;
     if (Clang->hasASTConsumer())
       Consumers.push_back(Clang->takeASTConsumer());
+    if (CustomConsumer)
+      Consumers.push_back(std::unique_ptr<ASTConsumer>(CustomConsumer)); // CALYPSO
     Consumers.push_back(llvm::make_unique<TopLevelDeclTrackerConsumer>(
         *AST, AST->getCurrentTopLevelHashValue()));
     Clang->setASTConsumer(
@@ -1898,11 +1915,12 @@ std::unique_ptr<ASTUnit> ASTUnit::LoadFromCompilerInvocation(
     bool OnlyLocalDecls, bool CaptureDiagnostics,
     unsigned PrecompilePreambleAfterNParses, TranslationUnitKind TUKind,
     bool CacheCodeCompletionResults, bool IncludeBriefCommentsInCodeCompletion,
-    bool UserFilesAreVolatile) {
+    bool UserFilesAreVolatile, ASTConsumer *CustomConsumer) { // CALYPSO
   // Create the AST unit.
   std::unique_ptr<ASTUnit> AST(new ASTUnit(false));
   ConfigureDiags(Diags, *AST, CaptureDiagnostics);
   AST->Diagnostics = Diags;
+  AST->CustomConsumer.reset(CustomConsumer); // CALYPSO
   AST->OnlyLocalDecls = OnlyLocalDecls;
   AST->CaptureDiagnostics = CaptureDiagnostics;
   AST->TUKind = TUKind;
