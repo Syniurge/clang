@@ -232,6 +232,7 @@ protected:
 
 private:
   friend class DeclContext;
+  friend class RecordDecl; // CALYPSO
 
   struct MultipleDC {
     DeclContext *SemanticDC;
