@@ -3509,7 +3509,9 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
                                  ReturnValueSlot ReturnValue,
                                  const CallArgList &CallArgs,
                                  CGCalleeInfo CalleeInfo,
-                                 llvm::Instruction **callOrInvoke) {
+                                 llvm::Instruction **callOrInvoke,
+                                 llvm::BasicBlock *InvokeDest,
+                                 llvm::BasicBlock *Cont) {
   // FIXME: We no longer need the types from CallArgs; lift up and simplify.
 
   // Handle struct-return functions by passing a pointer to the
@@ -3925,7 +3927,10 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
     CannotThrow = Attrs.hasAttribute(llvm::AttributeSet::FunctionIndex,
                                      llvm::Attribute::NoUnwind);
   }
-  llvm::BasicBlock *InvokeDest = CannotThrow ? nullptr : getInvokeDest();
+  if (CannotThrow)
+    InvokeDest = nullptr;
+  else if (!InvokeDest) // CALYPSO
+    InvokeDest = getInvokeDest();
 
   SmallVector<llvm::OperandBundleDef, 1> BundleList;
   getBundlesForFunclet(Callee, CurrentFuncletPad, BundleList);
@@ -3934,10 +3939,17 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
   if (!InvokeDest) {
     CS = Builder.CreateCall(Callee, IRCallArgs, BundleList);
   } else {
-    llvm::BasicBlock *Cont = createBasicBlock("invoke.cont");
+    bool emitCont = false; // CALYPSO
+    if (!Cont) {
+        Cont = createBasicBlock("invoke.cont");
+        emitCont = true;
+    }
     CS = Builder.CreateInvoke(Callee, Cont, InvokeDest, IRCallArgs,
                               BundleList);
-    EmitBlock(Cont);
+    if (emitCont)
+        EmitBlock(Cont);
+    else
+        Builder.SetInsertPoint(Cont); // CALYPSO
   }
   if (callOrInvoke)
     *callOrInvoke = CS.getInstruction();
