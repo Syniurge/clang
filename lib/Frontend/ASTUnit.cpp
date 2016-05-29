@@ -1113,7 +1113,7 @@ bool ASTUnit::Parse(std::shared_ptr<PCHContainerOperations> PCHContainerOps,
   }
 
   // Create the compiler instance to use for building the AST.
-  std::unique_ptr<CompilerInstance> Clang(
+  Clang.reset( // CALYPSO
       new CompilerInstance(std::move(PCHContainerOps)));
 
   // Ensure that Clang has a FileManager with the right VFS, which may have
