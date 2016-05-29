@@ -2357,7 +2357,7 @@ llvm::DICompositeType *CGDebugInfo::CreateLimitedType(const RecordType *Ty) {
   // If this is just a forward or incomplete declaration, construct an
   // appropriately marked node and just return it.
   const RecordDecl *D = RD->getDefinition();
-  if (!D || !D->isCompleteDefinition())
+  if (!D || !D->isCompleteDefinition() /* CALYPSO */ || D->isInvalidDecl())
     return getOrCreateRecordFwdDecl(Ty, RDContext);
 
   uint64_t Size = CGM.getContext().getTypeSize(Ty);

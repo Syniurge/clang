@@ -666,7 +666,7 @@ llvm::StructType *CodeGenTypes::ConvertRecordDeclType(const RecordDecl *RD) {
   // If this is still a forward declaration, or the LLVM type is already
   // complete, there's nothing more to do.
   RD = RD->getDefinition();
-  if (!RD || !RD->isCompleteDefinition() || !Ty->isOpaque())
+  if (!RD || !RD->isCompleteDefinition() || !Ty->isOpaque() /* CALYPSO */ || RD->isInvalidDecl())
     return Ty;
   
   // If converting this type would cause us to infinitely loop, don't do it!
