@@ -1017,8 +1017,7 @@ bool ASTUnit::Parse(std::shared_ptr<PCHContainerOperations> PCHContainerOps,
     return true;
 
   // Create the compiler instance to use for building the AST.
-  std::unique_ptr<CompilerInstance> Clang(
-      new CompilerInstance(std::move(PCHContainerOps)));
+  Clang.reset(new CompilerInstance(std::move(PCHContainerOps))); // CALYPSO
   if (FileMgr && VFS) {
     assert(VFS == FileMgr->getVirtualFileSystem() &&
            "VFS passed to Parse and VFS in FileMgr are different");

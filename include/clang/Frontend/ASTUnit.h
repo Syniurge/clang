@@ -88,6 +88,7 @@ public:
   };
 
 private:
+  std::unique_ptr<CompilerInstance> Clang; // CALYPSO
   std::shared_ptr<LangOptions>            LangOpts;
   IntrusiveRefCntPtr<DiagnosticsEngine>   Diagnostics;
   IntrusiveRefCntPtr<FileManager>         FileMgr;
