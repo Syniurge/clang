@@ -3786,8 +3786,17 @@ void RecordDecl::LoadFieldsFromExternalStorage() const {
   if (Decls.empty())
     return;
 
-  std::tie(FirstDecl, LastDecl) = BuildDeclChain(Decls,
-                                                 /*FieldsAlreadyLoaded=*/false);
+  // CALYPSO fix for https://llvm.org/bugs/show_bug.cgi?id=24420
+  Decl *ExternalFirst, *ExternalLast;
+  std::tie(ExternalFirst, ExternalLast) =
+      BuildDeclChain(Decls, /*FieldsAlreadyLoaded=*/false);
+  ExternalLast->NextInContextAndBits.setPointer(FirstDecl);
+  FirstDecl = ExternalFirst;
+  if (!LastDecl)
+    LastDecl = ExternalLast;
+
+//   std::tie(FirstDecl, LastDecl) = BuildDeclChain(Decls,
+//                                                  /*FieldsAlreadyLoaded=*/false);
 }
 
 bool RecordDecl::mayInsertExtraPadding(bool EmitRemark) const {
