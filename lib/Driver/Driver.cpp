@@ -111,7 +111,7 @@ Driver::Driver(StringRef ClangExecutable, StringRef DefaultTargetTriple,
   } else {
     StringRef ClangLibdirSuffix(CLANG_LIBDIR_SUFFIX);
     P = llvm::sys::path::parent_path(Dir);
-    llvm::sys::path::append(P, Twine("lib") + ClangLibdirSuffix, "clang",
+    llvm::sys::path::append(P, Twine("lib") + ClangLibdirSuffix, "clang-ldc", // CALYPSO
                             CLANG_VERSION_STRING);
   }
   ResourceDir = P.str();
