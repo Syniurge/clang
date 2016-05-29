@@ -6657,6 +6657,11 @@ bool Sema::RequireCompleteTypeImpl(SourceLocation Loc, QualType T,
       return !TreatAsComplete;
     }
 
+    // CALYPSO
+    const TagType *Tag = T->getAs<TagType>();
+    if (Tag && Tag->getDecl()->isInvalidDecl())
+        return true;
+
     return false;
   }
 
