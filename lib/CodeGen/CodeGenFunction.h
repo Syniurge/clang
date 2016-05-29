@@ -3598,12 +3598,16 @@ public:
   /// LLVM arguments and the types they were derived from.
   RValue EmitCall(const CGFunctionInfo &CallInfo, const CGCallee &Callee,
                   ReturnValueSlot ReturnValue, const CallArgList &Args,
-                  llvm::CallBase **callOrInvoke, SourceLocation Loc);
+                  llvm::CallBase **callOrInvoke, SourceLocation Loc,
+                  llvm::BasicBlock *InvokeDest = nullptr, // CALYPSO
+                  llvm::BasicBlock *Cont = nullptr);
   RValue EmitCall(const CGFunctionInfo &CallInfo, const CGCallee &Callee,
                   ReturnValueSlot ReturnValue, const CallArgList &Args,
-                  llvm::CallBase **callOrInvoke = nullptr) {
+                  llvm::CallBase **callOrInvoke = nullptr,
+                  llvm::BasicBlock *InvokeDest = nullptr, // CALYPSO
+                  llvm::BasicBlock *Cont = nullptr) {
     return EmitCall(CallInfo, Callee, ReturnValue, Args, callOrInvoke,
-                    SourceLocation());
+                    SourceLocation(), InvokeDest, Cont);
   }
   RValue EmitCall(QualType FnType, const CGCallee &Callee, const CallExpr *E,
                   ReturnValueSlot ReturnValue, llvm::Value *Chain = nullptr);

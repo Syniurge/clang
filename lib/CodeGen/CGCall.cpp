@@ -3778,7 +3778,9 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
                                  ReturnValueSlot ReturnValue,
                                  const CallArgList &CallArgs,
                                  llvm::CallBase **callOrInvoke,
-                                 SourceLocation Loc) {
+                                 SourceLocation Loc,
+                                 llvm::BasicBlock *InvokeDest, // CALYPSO
+                                 llvm::BasicBlock *Cont) {
   // FIXME: We no longer need the types from CallArgs; lift up and simplify.
 
   assert(Callee.isOrdinary() || Callee.isVirtual());
@@ -4328,7 +4330,10 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
     pushFullExprCleanup<CallLifetimeEnd>(NormalEHLifetimeMarker, SRetAlloca,
                                          UnusedReturnSizePtr);
 
-  llvm::BasicBlock *InvokeDest = CannotThrow ? nullptr : getInvokeDest();
+  if (CannotThrow)
+    InvokeDest = nullptr;
+  else if (!InvokeDest) // CALYPSO
+    InvokeDest = getInvokeDest();
 
   SmallVector<llvm::OperandBundleDef, 1> BundleList =
       getBundlesForFunclet(CalleePtr);
@@ -4338,10 +4343,17 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
   if (!InvokeDest) {
     CI = Builder.CreateCall(IRFuncTy, CalleePtr, IRCallArgs, BundleList);
   } else {
-    llvm::BasicBlock *Cont = createBasicBlock("invoke.cont");
+    bool emitCont = false; // CALYPSO
+    if (!Cont) {
+        Cont = createBasicBlock("invoke.cont");
+        emitCont = true;
+    }
     CI = Builder.CreateInvoke(IRFuncTy, CalleePtr, Cont, InvokeDest, IRCallArgs,
                               BundleList);
-    EmitBlock(Cont);
+    if (emitCont)
+        EmitBlock(Cont);
+    else
+        Builder.SetInsertPoint(Cont); // CALYPSO
   }
   if (callOrInvoke)
     *callOrInvoke = CI;
