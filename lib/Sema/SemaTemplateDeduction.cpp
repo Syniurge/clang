@@ -4614,6 +4614,17 @@ static bool isAtLeastAsSpecializedAs(Sema &S,
   return true;
 }
 
+namespace clang { // CALYPSO
+bool isAtLeastAsSpecializedAs_(Sema &S,
+                               SourceLocation Loc,
+                               FunctionTemplateDecl *FT1,
+                               FunctionTemplateDecl *FT2,
+                               TemplatePartialOrderingContext TPOC,
+                               unsigned NumCallArguments1) {
+  return isAtLeastAsSpecializedAs(S, Loc, FT1, FT2, TPOC, NumCallArguments1);
+}
+}
+
 /// \brief Determine whether this a function template whose parameter-type-list
 /// ends with a function parameter pack.
 static bool isVariadicFunctionTemplate(FunctionTemplateDecl *FunTmpl) {
