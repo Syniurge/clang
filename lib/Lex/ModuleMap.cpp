@@ -1420,33 +1420,34 @@ void ModuleMapParser::parseModuleDecl() {
   }  
   SourceLocation LBraceLoc = consumeToken();
   
-  // Determine whether this (sub)module has already been defined.
-  if (Module *Existing = Map.lookupModuleQualified(ModuleName, ActiveModule)) {
-    if (Existing->DefinitionLoc.isInvalid() && !ActiveModule) {
-      // Skip the module definition.
-      skipUntil(MMToken::RBrace);
-      if (Tok.is(MMToken::RBrace))
-        consumeToken();
-      else {
-        Diags.Report(Tok.getLocation(), diag::err_mmap_expected_rbrace);
-        Diags.Report(LBraceLoc, diag::note_mmap_lbrace_match);
-        HadError = true;        
-      }
-      return;
-    }
-    
-    Diags.Report(ModuleNameLoc, diag::err_mmap_module_redefinition)
-      << ModuleName;
-    Diags.Report(Existing->DefinitionLoc, diag::note_mmap_prev_definition);
-    
-    // Skip the module definition.
-    skipUntil(MMToken::RBrace);
-    if (Tok.is(MMToken::RBrace))
-      consumeToken();
-    
-    HadError = true;
-    return;
-  }
+  // CALYPSO HACK: Allow the same module to be defined across several module maps (esp. "c", which is the root for C standard lib modules).
+//   // Determine whether this (sub)module has already been defined.
+//   if (Module *Existing = Map.lookupModuleQualified(ModuleName, ActiveModule)) {
+//     if (Existing->DefinitionLoc.isInvalid() && !ActiveModule) {
+//       // Skip the module definition.
+//       skipUntil(MMToken::RBrace);
+//       if (Tok.is(MMToken::RBrace))
+//         consumeToken();
+//       else {
+//         Diags.Report(Tok.getLocation(), diag::err_mmap_expected_rbrace);
+//         Diags.Report(LBraceLoc, diag::note_mmap_lbrace_match);
+//         HadError = true;
+//       }
+//       return;
+//     }
+//
+//     Diags.Report(ModuleNameLoc, diag::err_mmap_module_redefinition)
+//       << ModuleName;
+//     Diags.Report(Existing->DefinitionLoc, diag::note_mmap_prev_definition);
+//
+//     // Skip the module definition.
+//     skipUntil(MMToken::RBrace);
+//     if (Tok.is(MMToken::RBrace))
+//       consumeToken();
+//
+//     HadError = true;
+//     return;
+//   }
 
   // Start defining this module.
   ActiveModule = Map.findOrCreateModule(ModuleName, ActiveModule, Framework,
