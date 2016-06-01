@@ -1711,7 +1711,7 @@ llvm::DIType *CGDebugInfo::CreateTypeDefinition(const RecordType *Ty) {
   llvm::DICompositeType *FwdDecl = getOrCreateLimitedType(Ty, DefUnit);
 
   const RecordDecl *D = RD->getDefinition();
-  if (!D || !D->isCompleteDefinition())
+  if (!D || !D->isCompleteDefinition() /* CALYPSO */ || D->isInvalidDecl())
     return FwdDecl;
 
   if (const auto *CXXDecl = dyn_cast<CXXRecordDecl>(RD))
