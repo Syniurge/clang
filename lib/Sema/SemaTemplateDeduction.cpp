@@ -1269,7 +1269,7 @@ DeduceTemplateArgumentsByTypeMatch(Sema &S,
       Qualifiers ArgQuals = Arg.getQualifiers();
       if ((ParamRef->isLValueReferenceType() &&
            !ArgRef->isLValueReferenceType()) ||
-          ParamQuals.isStrictSupersetOf(ArgQuals) ||
+          (ParamQuals.isStrictSupersetOf(ArgQuals) && !(TDF & TDF_IgnoreQualifiers)) || // CALYPSO HACK
           (ParamQuals.hasNonTrivialObjCLifetime() &&
            ArgQuals.getObjCLifetime() == Qualifiers::OCL_ExplicitNone &&
            ParamQuals.withoutObjCLifetime() ==
@@ -4671,7 +4671,8 @@ static bool isAtLeastAsSpecializedAs(Sema &S,
                                      FunctionTemplateDecl *FT1,
                                      FunctionTemplateDecl *FT2,
                                      TemplatePartialOrderingContext TPOC,
-                                     unsigned NumCallArguments1) {
+                                     unsigned NumCallArguments1,
+                                     unsigned TDF = TDF_None) { // CALYPSO
   FunctionDecl *FD1 = FT1->getTemplatedDecl();
   FunctionDecl *FD2 = FT2->getTemplatedDecl();
   const FunctionProtoType *Proto1 = FD1->getType()->getAs<FunctionProtoType>();
@@ -4736,7 +4737,7 @@ static bool isAtLeastAsSpecializedAs(Sema &S,
       Args2.resize(NumComparedArguments);
     if (DeduceTemplateArguments(S, TemplateParams, Args2.data(), Args2.size(),
                                 Args1.data(), Args1.size(), Info, Deduced,
-                                TDF_None, /*PartialOrdering=*/true))
+                                TDF, /*PartialOrdering=*/true))
       return false;
 
     break;
@@ -4747,7 +4748,7 @@ static bool isAtLeastAsSpecializedAs(Sema &S,
     //     of the conversion function templates are used.
     if (DeduceTemplateArgumentsByTypeMatch(
             S, TemplateParams, Proto2->getReturnType(), Proto1->getReturnType(),
-            Info, Deduced, TDF_None,
+            Info, Deduced, TDF,
             /*PartialOrdering=*/true))
       return false;
     break;
@@ -4757,7 +4758,7 @@ static bool isAtLeastAsSpecializedAs(Sema &S,
     //     is used.
     if (DeduceTemplateArgumentsByTypeMatch(S, TemplateParams,
                                            FD2->getType(), FD1->getType(),
-                                           Info, Deduced, TDF_None,
+                                           Info, Deduced, TDF,
                                            /*PartialOrdering=*/true))
       return false;
     break;
@@ -4821,8 +4822,9 @@ bool isAtLeastAsSpecializedAs_(Sema &S,
                                FunctionTemplateDecl *FT1,
                                FunctionTemplateDecl *FT2,
                                TemplatePartialOrderingContext TPOC,
-                               unsigned NumCallArguments1) {
-  return isAtLeastAsSpecializedAs(S, Loc, FT1, FT2, TPOC, NumCallArguments1);
+                               unsigned NumCallArguments1,
+                               unsigned TDF = TDF_None) {
+  return isAtLeastAsSpecializedAs(S, Loc, FT1, FT2, TPOC, NumCallArguments1, TDF);
 }
 }
 
