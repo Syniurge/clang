@@ -8320,8 +8320,9 @@ QualType ASTContext::GetBuiltinType(unsigned Id,
 
 static GVALinkage basicGVALinkageForFunction(const ASTContext &Context,
                                              const FunctionDecl *FD) {
-  if (!FD->isExternallyVisible())
-    return GVA_Internal;
+    // CALYPSO
+//   if (!FD->isExternallyVisible())
+//     return GVA_Internal;
 
   GVALinkage External = GVA_StrongExternal;
   switch (FD->getTemplateSpecializationKind()) {
@@ -8394,8 +8395,9 @@ GVALinkage ASTContext::GetGVALinkageForFunction(const FunctionDecl *FD) const {
 
 static GVALinkage basicGVALinkageForVariable(const ASTContext &Context,
                                              const VarDecl *VD) {
-  if (!VD->isExternallyVisible())
-    return GVA_Internal;
+    // CALYPSO
+//   if (!VD->isExternallyVisible())
+//     return GVA_Internal;
 
   if (VD->isStaticLocal()) {
     GVALinkage StaticLocalLinkage = GVA_DiscardableODR;
