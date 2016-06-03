@@ -9644,8 +9644,9 @@ QualType ASTContext::GetBuiltinType(unsigned Id,
 
 static GVALinkage basicGVALinkageForFunction(const ASTContext &Context,
                                              const FunctionDecl *FD) {
-  if (!FD->isExternallyVisible())
-    return GVA_Internal;
+    // CALYPSO
+//   if (!FD->isExternallyVisible())
+//     return GVA_Internal;
 
   // Non-user-provided functions get emitted as weak definitions with every
   // use, no matter whether they've been explicitly instantiated etc.
@@ -9757,8 +9758,9 @@ GVALinkage ASTContext::GetGVALinkageForFunction(const FunctionDecl *FD) const {
 
 static GVALinkage basicGVALinkageForVariable(const ASTContext &Context,
                                              const VarDecl *VD) {
-  if (!VD->isExternallyVisible())
-    return GVA_Internal;
+    // CALYPSO
+//   if (!VD->isExternallyVisible())
+//     return GVA_Internal;
 
   if (VD->isStaticLocal()) {
     const DeclContext *LexicalContext = VD->getParentFunctionOrMethod();
