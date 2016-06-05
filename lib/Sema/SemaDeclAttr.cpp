@@ -4447,12 +4447,12 @@ static void handleDeclspecThreadAttr(Sema &S, Decl *D,
 }
 
 static void handleAbiTagAttr(Sema &S, Decl *D, const AttributeList &Attr) {
-  SmallVector<StringRef, 4> Tags;
+  SmallVector<std::string, 4> Tags;
   for (unsigned I = 0, E = Attr.getNumArgs(); I != E; ++I) {
     StringRef Tag;
     if (!S.checkStringLiteralArgumentAttr(Attr, I, Tag))
       return;
-    Tags.push_back(Tag);
+    Tags.push_back(Tag.str());
   }
 
   if (const auto *NS = dyn_cast<NamespaceDecl>(D)) {
