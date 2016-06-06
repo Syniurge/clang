@@ -3703,6 +3703,13 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
 
   assert(Callee.isOrdinary());
 
+  // CALYPSO mark the callee for emission if it's an always inlined function
+  if (const auto CalleeDecl = dyn_cast_or_null<FunctionDecl>(Callee.getAbstractInfo().getCalleeDecl())) {
+      auto CalleeF = dyn_cast<llvm::Function>(Callee.getFunctionPointer());
+      if (CalleeDecl->hasAttr<AlwaysInlineAttr>() && CalleeF && CalleeF->isDeclaration())
+          CGM.EmitTopLevelDecl(const_cast<FunctionDecl*>(CalleeDecl));
+  }
+
   // Handle struct-return functions by passing a pointer to the
   // location that we would like to return into.
   QualType RetTy = CallInfo.getReturnType();
