@@ -8372,7 +8372,7 @@ static GVALinkage basicGVALinkageForFunction(const ASTContext &Context,
   if (FD->isMSExternInline())
     return GVA_StrongODR;
 
-  return GVA_DiscardableODR;
+  return GVA_StrongODR /*GVA_DiscardableODR*/; // CALYPSO
 }
 
 static GVALinkage adjustGVALinkageForAttributes(GVALinkage L, const Decl *D) {
@@ -8441,7 +8441,7 @@ static GVALinkage basicGVALinkageForVariable(const ASTContext &Context,
     return GVA_AvailableExternally;
 
   case TSK_ImplicitInstantiation:
-    return GVA_DiscardableODR;
+    return GVA_StrongODR /*GVA_DiscardableODR*/; // CALYPSO
   }
 
   llvm_unreachable("Invalid Linkage!");
