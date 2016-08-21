@@ -12631,8 +12631,8 @@ void Sema::MarkFunctionReferenced(SourceLocation Loc, FunctionDecl *Func,
     Constructor = cast<CXXConstructorDecl>(Constructor->getFirstDecl());
     if (Constructor->isDefaulted() && !Constructor->isDeleted()) {
       if (Constructor->isDefaultConstructor()) {
-        if (Constructor->isTrivial() && !Constructor->hasAttr<DLLExportAttr>())
-          return;
+//         if (Constructor->isTrivial() && !Constructor->hasAttr<DLLExportAttr>()) // CALYPSO HACK: define trivial constructors for TypeInfo_Class
+//           return;
         DefineImplicitDefaultConstructor(Loc, Constructor);
       } else if (Constructor->isCopyConstructor()) {
         DefineImplicitCopyConstructor(Loc, Constructor);
@@ -12646,8 +12646,8 @@ void Sema::MarkFunctionReferenced(SourceLocation Loc, FunctionDecl *Func,
                  dyn_cast<CXXDestructorDecl>(Func)) {
     Destructor = cast<CXXDestructorDecl>(Destructor->getFirstDecl());
     if (Destructor->isDefaulted() && !Destructor->isDeleted()) {
-      if (Destructor->isTrivial() && !Destructor->hasAttr<DLLExportAttr>())
-        return;
+//       if (Destructor->isTrivial() && !Destructor->hasAttr<DLLExportAttr>())  // CALYPSO HACK: define trivial destructors as well
+//         return;
       DefineImplicitDestructor(Loc, Destructor);
     }
     if (Destructor->isVirtual() && getLangOpts().AppleKext)
