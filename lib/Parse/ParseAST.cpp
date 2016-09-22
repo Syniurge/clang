@@ -185,4 +185,8 @@ void clang::ParseAST(Sema &S, bool PrintStats, bool SkipFunctionBodies) {
     Stmt::PrintStats();
     Consumer->PrintStats();
   }
+
+  // CALYPSO HACK leak the parser, Sema will rely on it for MSVC delayed template parsing
+  if (S.OpaqueParser == &P)
+    ParseOP.release();
 }
