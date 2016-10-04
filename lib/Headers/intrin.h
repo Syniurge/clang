@@ -934,6 +934,8 @@ __readmsr(unsigned long __register) {
   return (((unsigned __int64)__edx) << 32) | (unsigned __int64)__eax;
 }
 
+// CALYPSO Clang BUG #19301
+#ifndef __x86_64__
 static __inline__ unsigned long __DEFAULT_FN_ATTRS
 __readcr3(void) {
   unsigned long __cr3_val;
@@ -945,6 +947,7 @@ static __inline__ void __DEFAULT_FN_ATTRS
 __writecr3(unsigned int __cr3_val) {
   __asm__ ("mov %0, %%cr3" : : "q"(__cr3_val) : "memory");
 }
+#endif
 #endif
 
 #ifdef __cplusplus
