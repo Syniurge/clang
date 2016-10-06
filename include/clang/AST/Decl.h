@@ -30,6 +30,8 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/TrailingObjects.h"
 
+class Dsymbol; // CALYPSO
+
 namespace clang {
 struct ASTTemplateArgumentListInfo;
 class CXXTemporary;
@@ -216,6 +218,9 @@ class NamedDecl : public Decl {
   /// identifier but may also be a special kind of name (C++
   /// constructor, Objective-C selector, etc.)
   DeclarationName Name;
+
+public: // CALYPSO
+  Dsymbol* dsym = nullptr;
 
 private:
   NamedDecl *getUnderlyingDeclImpl() LLVM_READONLY;
