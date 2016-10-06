@@ -48,6 +48,10 @@
 #include <string>
 #include <utility>
 
+namespace cpp {
+struct DData; // CALYPSO
+}
+
 namespace clang {
 
 class ASTContext;
@@ -252,6 +256,9 @@ class NamedDecl : public Decl {
   DeclarationName Name;
 
   virtual void anchor();
+
+public: // CALYPSO
+  cpp::DData* d = nullptr;
 
 private:
   NamedDecl *getUnderlyingDeclImpl() LLVM_READONLY;
