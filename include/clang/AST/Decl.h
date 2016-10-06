@@ -48,6 +48,8 @@
 #include <string>
 #include <utility>
 
+class Dsymbol; // CALYPSO
+
 namespace clang {
 
 class ASTContext;
@@ -252,6 +254,9 @@ class NamedDecl : public Decl {
   DeclarationName Name;
 
   virtual void anchor();
+
+public: // CALYPSO
+  Dsymbol* dsym = nullptr;
 
 private:
   NamedDecl *getUnderlyingDeclImpl() LLVM_READONLY;
