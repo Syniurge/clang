@@ -7451,11 +7451,23 @@ public:
   /// but have not yet been performed.
   std::deque<PendingImplicitInstantiation> PendingInstantiations;
 
+  // CALYPSO
+  // Since vanilla Clang delays function instantiation, it doesn't mark callers
+  // of invalid functions invalid themselves. This is however a requirement for
+  // Calypso as D compilers emit every function, unlike C++ compilers which
+  // emit decls lazily. The final check must be done once every callee has been
+  // fully instantiated.
+  std::set<FunctionDecl *> PendingChecks;
+  void PerformPendingChecks();
+  unsigned NumSavePendingInstantiationsAndVTableUsesRAII = 0;
+
   class GlobalEagerInstantiationScope {
   public:
     GlobalEagerInstantiationScope(Sema &S, bool Enabled)
         : S(S), Enabled(Enabled) {
       if (!Enabled) return;
+
+      S.NumSavePendingInstantiationsAndVTableUsesRAII++;
 
       SavedPendingInstantiations.swap(S.PendingInstantiations);
       SavedVTableUses.swap(S.VTableUses);
@@ -7480,6 +7492,8 @@ public:
       assert(S.PendingInstantiations.empty() &&
              "PendingInstantiations should be empty before it is discarded.");
       S.PendingInstantiations.swap(SavedPendingInstantiations);
+
+      S.NumSavePendingInstantiationsAndVTableUsesRAII--;
     }
 
   private:
