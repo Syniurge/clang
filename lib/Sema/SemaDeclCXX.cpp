@@ -9224,6 +9224,8 @@ void Sema::DefineImplicitDefaultConstructor(SourceLocation CurrentLocation,
   Constructor->markUsed(Context);
   MarkVTableUsed(CurrentLocation, ClassDecl);
 
+  PendingChecks.insert(Constructor); // CALYPSO
+
   if (ASTMutationListener *L = getASTMutationListener()) {
     L->CompletedImplicitDefinition(Constructor);
   }
@@ -9541,6 +9543,8 @@ void Sema::DefineImplicitDestructor(SourceLocation CurrentLocation,
   Destructor->setBody(new (Context) CompoundStmt(Loc));
   Destructor->markUsed(Context);
   MarkVTableUsed(CurrentLocation, ClassDecl);
+
+  PendingChecks.insert(Destructor); // CALYPSO
 
   if (ASTMutationListener *L = getASTMutationListener()) {
     L->CompletedImplicitDefinition(Destructor);
@@ -10481,6 +10485,8 @@ void Sema::DefineImplicitCopyAssignment(SourceLocation CurrentLocation,
   }
   CopyAssignOperator->setBody(Body.getAs<Stmt>());
 
+  PendingChecks.insert(CopyAssignOperator); // CALYPSO
+
   if (ASTMutationListener *L = getASTMutationListener()) {
     L->CompletedImplicitDefinition(CopyAssignOperator);
   }
@@ -10918,6 +10924,8 @@ void Sema::DefineImplicitMoveAssignment(SourceLocation CurrentLocation,
   }
   MoveAssignOperator->setBody(Body.getAs<Stmt>());
 
+  PendingChecks.insert(MoveAssignOperator); // CALYPSO
+
   if (ASTMutationListener *L = getASTMutationListener()) {
     L->CompletedImplicitDefinition(MoveAssignOperator);
   }
@@ -11090,6 +11098,8 @@ void Sema::DefineImplicitCopyConstructor(SourceLocation CurrentLocation,
 
   CopyConstructor->markUsed(Context);
   MarkVTableUsed(CurrentLocation, ClassDecl);
+
+  PendingChecks.insert(CopyConstructor); // CALYPSO
 
   if (ASTMutationListener *L = getASTMutationListener()) {
     L->CompletedImplicitDefinition(CopyConstructor);
@@ -11265,6 +11275,8 @@ void Sema::DefineImplicitMoveConstructor(SourceLocation CurrentLocation,
 
   MoveConstructor->markUsed(Context);
   MarkVTableUsed(CurrentLocation, ClassDecl);
+
+  PendingChecks.insert(MoveConstructor); // CALYPSO
 
   if (ASTMutationListener *L = getASTMutationListener()) {
     L->CompletedImplicitDefinition(MoveConstructor);

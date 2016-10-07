@@ -18,6 +18,7 @@
 #include "clang/AST/DependentDiagnostic.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprCXX.h"
+#include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/AST/TypeLoc.h"
 #include "clang/Sema/Lookup.h"
 #include "clang/Sema/PrettyDeclStackTrace.h"
@@ -3482,6 +3483,102 @@ TemplateDeclInstantiator::InitMethodInstantiation(CXXMethodDecl *New,
   return false;
 }
 
+// CALYPSO
+namespace {
+    class InstantiatedFuncFinalChecker 
+        : public RecursiveASTVisitor<InstantiatedFuncFinalChecker>
+    {
+    private:
+        Sema& S;
+        FunctionDecl* Checked;
+
+        std::vector<FunctionDecl*> Deps;
+
+        static thread_local std::map<FunctionDecl*, InstantiatedFuncFinalChecker*> AllCheckers;
+
+    public:
+        InstantiatedFuncFinalChecker(Sema &S, FunctionDecl* Checked)
+            : S(S), Checked(Checked) {
+            AllCheckers[Checked] = this;
+        }
+
+        ~InstantiatedFuncFinalChecker() {
+            AllCheckers.erase(Checked);
+        }
+
+        void run() {
+            TraverseStmt(Checked->getBody());
+
+            if (auto Ctor = dyn_cast<CXXConstructorDecl>(Checked))
+                for (auto& Init : Ctor->inits())
+                    TraverseStmt(Init->getInit());
+        }
+
+        void markInvalid() {
+            if (Checked->isInvalidDecl())
+                return;
+
+            Checked->setInvalidDecl();
+            for (auto Dep: Deps)
+                Dep->setInvalidDecl();
+        }
+
+        bool Check(Decl* D) {
+            if (auto FD = dyn_cast<FunctionDecl>(D)) {
+                bool isBeingChecked = AllCheckers.count(FD);
+
+                if (!isBeingChecked && S.PendingChecks.count(FD))
+                    InstantiatedFuncFinalChecker(S, FD).run();
+
+                assert(FD->hasBody()
+                    || (!FD->isImplicitlyInstantiable() || !FD->getTemplateInstantiationPattern()->hasBody()));
+
+                if (FD->isInvalidDecl()) {
+                    markInvalid();
+                    return false;
+                }
+
+                if (isBeingChecked)
+                    AllCheckers[FD]->Deps.push_back(Checked);
+            }
+            return true;
+        }
+
+        bool VisitDeclRefExpr(DeclRefExpr *E) {
+            return Check(E->getDecl());
+        }
+
+        bool VisitMemberExpr(MemberExpr *E) {
+            return Check(E->getMemberDecl());
+        }
+
+        bool VisitCXXConstructExpr(CXXConstructExpr *E) {
+            return Check(E->getConstructor());
+        }
+
+        // Skip unevaluated contexts
+        bool VisitCXXNoexceptExpr(CXXNoexceptExpr *) { return false; }
+        bool VisitCXXTypeidExpr(CXXTypeidExpr *) { return false; }
+        bool VisitTypeTraitExpr(TypeTraitExpr *) { return false; }
+        bool VisitUnaryExprOrTypeTraitExpr(UnaryExprOrTypeTraitExpr *) { return false; }
+
+        bool VisitDecltypeType(DecltypeType *) { return false; }
+        bool VisitTypeOfType(TypeOfType *) { return false; }
+        bool VisitTypeOfExprType(TypeOfExprType *) { return false; }
+    };
+
+    thread_local std::map<FunctionDecl*, InstantiatedFuncFinalChecker*> InstantiatedFuncFinalChecker::AllCheckers;
+}
+
+void Sema::PerformPendingChecks()
+{
+    assert(PendingInstantiations.empty());
+    for (auto Func: PendingChecks)
+        InstantiatedFuncFinalChecker(*this, Func).run();
+    PendingChecks.clear();
+}
+
+
 /// \brief Instantiate the definition of the given function from its
 /// template.
 ///
@@ -3674,6 +3771,8 @@ void Sema::InstantiateFunctionDefinition(SourceLocation PointOfInstantiation,
 
     if (Body.isInvalid())
       Function->setInvalidDecl();
+
+    PendingChecks.insert(Function); // CALYPSO
 
     ActOnFinishFunctionBody(Function, Body.get(),
                             /*IsInstantiation=*/true);
@@ -4918,6 +5017,10 @@ void Sema::PerformPendingInstantiations(bool LocalOnly) {
     InstantiateVariableDefinition(/*FIXME:*/ Inst.second, Var, true,
                                   DefinitionRequired, true);
   }
+
+  // CALYPSO
+  if (!LocalOnly && NumSavePendingInstantiationsAndVTableUsesRAII == 0)
+    PerformPendingChecks();
 }
 
 void Sema::PerformDependentDiagnostics(const DeclContext *Pattern,
