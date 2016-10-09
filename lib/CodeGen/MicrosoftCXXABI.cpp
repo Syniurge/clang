@@ -4189,3 +4189,14 @@ void MicrosoftCXXABI::emitThrow(CodeGenFunction &CGF, const CXXThrowExpr *E) {
   };
   CGF.EmitNoreturnRuntimeCallOrInvoke(getThrowFn(), Args);
 }
+
+// CALYPSO
+namespace clang {
+namespace CodeGen {
+    llvm::GlobalVariable *getMSCompleteObjectLocator(CGCXXABI& CXXABI, const CXXRecordDecl *RD,
+        const VPtrInfo *Info) {
+        return static_cast<MicrosoftCXXABI&>(CXXABI).getMSCompleteObjectLocator(RD, Info);
+    }
+}
+}
+

@@ -999,6 +999,178 @@ public:
   void dumpLayout(raw_ostream&);
 };
 
+typedef llvm::SmallSetVector<const CXXRecordDecl *, 8> BasesSetVectorTy;
+
+class VFTableBuilder {
+public:
+    typedef MicrosoftVTableContext::MethodVFTableLocation MethodVFTableLocation;
+
+    typedef llvm::DenseMap<GlobalDecl, MethodVFTableLocation>
+        MethodVFTableLocationsTy;
+
+    typedef llvm::iterator_range<MethodVFTableLocationsTy::const_iterator>
+        method_locations_range;
+
+public:
+    /// VTables - Global vtable information.
+    MicrosoftVTableContext &VTables;
+
+    /// Context - The ASTContext which we will use for layout information.
+    ASTContext &Context;
+
+    /// MostDerivedClass - The most derived class for which we're building this
+    /// vtable.
+    const CXXRecordDecl *MostDerivedClass;
+
+    const ASTRecordLayout &MostDerivedClassLayout;
+
+    const VPtrInfo &WhichVFPtr;
+
+    /// FinalOverriders - The final overriders of the most derived class.
+    const FinalOverriders Overriders;
+
+    /// Components - The components of the vftable being built.
+    SmallVector<VTableComponent, 64> Components;
+
+    MethodVFTableLocationsTy MethodVFTableLocations;
+
+    /// \brief Does this class have an RTTI component?
+    bool HasRTTIComponent = false;
+
+    /// MethodInfo - Contains information about a method in a vtable.
+    /// (Used for computing 'this' pointer adjustment thunks.
+    struct MethodInfo {
+        /// VBTableIndex - The nonzero index in the vbtable that
+        /// this method's base has, or zero.
+        const uint64_t VBTableIndex;
+
+        /// VFTableIndex - The index in the vftable that this method has.
+        const uint64_t VFTableIndex;
+
+        /// Shadowed - Indicates if this vftable slot is shadowed by
+        /// a slot for a covariant-return override. If so, it shouldn't be printed
+        /// or used for vcalls in the most derived class.
+        bool Shadowed;
+
+        /// UsesExtraSlot - Indicates if this vftable slot was created because
+        /// any of the overridden slots required a return adjusting thunk.
+        bool UsesExtraSlot;
+
+        MethodInfo(uint64_t VBTableIndex, uint64_t VFTableIndex,
+            bool UsesExtraSlot = false)
+            : VBTableIndex(VBTableIndex), VFTableIndex(VFTableIndex),
+            Shadowed(false), UsesExtraSlot(UsesExtraSlot) {}
+
+        MethodInfo()
+            : VBTableIndex(0), VFTableIndex(0), Shadowed(false),
+            UsesExtraSlot(false) {}
+    };
+
+    typedef llvm::DenseMap<const CXXMethodDecl *, MethodInfo> MethodInfoMapTy;
+
+    /// MethodInfoMap - The information for all methods in the vftable we're
+    /// currently building.
+    MethodInfoMapTy MethodInfoMap;
+
+    typedef llvm::DenseMap<uint64_t, ThunkInfo> VTableThunksMapTy;
+
+    /// VTableThunks - The thunks by vftable index in the vftable currently being
+    /// built.
+    VTableThunksMapTy VTableThunks;
+
+    typedef SmallVector<ThunkInfo, 1> ThunkInfoVectorTy;
+    typedef llvm::DenseMap<const CXXMethodDecl *, ThunkInfoVectorTy> ThunksMapTy;
+
+    /// Thunks - A map that contains all the thunks needed for all methods in the
+    /// most derived class for which the vftable is currently being built.
+    ThunksMapTy Thunks;
+
+    /// AddThunk - Add a thunk for the given method.
+    void AddThunk(const CXXMethodDecl *MD, const ThunkInfo &Thunk) {
+        SmallVector<ThunkInfo, 1> &ThunksVector = Thunks[MD];
+
+        // Check if we have this thunk already.
+        if (std::find(ThunksVector.begin(), ThunksVector.end(), Thunk) !=
+            ThunksVector.end())
+            return;
+
+        ThunksVector.push_back(Thunk);
+    }
+
+    /// ComputeThisOffset - Returns the 'this' argument offset for the given
+    /// method, relative to the beginning of the MostDerivedClass.
+    CharUnits ComputeThisOffset(FinalOverriders::OverriderInfo Overrider);
+
+    void CalculateVtordispAdjustment(FinalOverriders::OverriderInfo Overrider,
+        CharUnits ThisOffset, ThisAdjustment &TA);
+
+    /// AddMethod - Add a single virtual member function to the vftable
+    /// components vector.
+    void AddMethod(const CXXMethodDecl *MD, ThunkInfo TI);
+
+    /// AddMethods - Add the methods of this base subobject and the relevant
+    /// subbases to the vftable we're currently laying out.
+    void AddMethods(BaseSubobject Base, unsigned BaseDepth,
+        const CXXRecordDecl *LastVBase,
+        BasesSetVectorTy &VisitedBases);
+
+    void LayoutVFTable();
+
+public:
+    VFTableBuilder(MicrosoftVTableContext &VTables,
+        const CXXRecordDecl *MostDerivedClass, const VPtrInfo *Which)
+        : VTables(VTables),
+        Context(MostDerivedClass->getASTContext()),
+        MostDerivedClass(MostDerivedClass),
+        MostDerivedClassLayout(Context.getASTRecordLayout(MostDerivedClass)),
+        WhichVFPtr(*Which),
+        Overriders(MostDerivedClass, CharUnits(), MostDerivedClass) {
+        // Provide the RTTI component if RTTIData is enabled. If the vftable would
+        // be available externally, we should not provide the RTTI componenent. It
+        // is currently impossible to get available externally vftables with either
+        // dllimport or extern template instantiations, but eventually we may add a
+        // flag to support additional devirtualization that needs this.
+        if (Context.getLangOpts().RTTIData)
+            HasRTTIComponent = true;
+
+        LayoutVFTable();
+
+        if (Context.getLangOpts().DumpVTableLayouts)
+            dumpLayout(llvm::outs());
+    }
+
+    uint64_t getNumThunks() const { return Thunks.size(); }
+
+    ThunksMapTy::const_iterator thunks_begin() const { return Thunks.begin(); }
+
+    ThunksMapTy::const_iterator thunks_end() const { return Thunks.end(); }
+
+    method_locations_range vtable_locations() const {
+        return method_locations_range(MethodVFTableLocations.begin(),
+            MethodVFTableLocations.end());
+    }
+
+    uint64_t getNumVTableComponents() const { return Components.size(); }
+
+    const VTableComponent *vtable_component_begin() const {
+        return Components.begin();
+    }
+
+    const VTableComponent *vtable_component_end() const {
+        return Components.end();
+    }
+
+    VTableThunksMapTy::const_iterator vtable_thunks_begin() const {
+        return VTableThunks.begin();
+    }
+
+    VTableThunksMapTy::const_iterator vtable_thunks_end() const {
+        return VTableThunks.end();
+    }
+
+    void dumpLayout(raw_ostream &);
+};
+
 // CALYPSO
 BaseOffset ComputeBaseOffset(const ASTContext &Context,
                                     const CXXRecordDecl *BaseRD,
