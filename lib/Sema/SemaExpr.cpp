@@ -11626,7 +11626,7 @@ Sema::ActOnStmtExpr(SourceLocation LPLoc, Stmt *SubStmt,
 
   if (hasAnyUnrecoverableErrorsInThisFunction())
     DiscardCleanupsInEvaluationContext();
-  assert(!Cleanup.exprNeedsCleanups() &&
+  assert(!Cleanup.cleanupsHaveSideEffects() &&
          "cleanups within StmtExpr not correctly bound!");
   PopExpressionEvaluationContext();
 
@@ -12094,7 +12094,7 @@ ExprResult Sema::ActOnBlockStmtExpr(SourceLocation CaretLoc,
   // Leave the expression-evaluation context.
   if (hasAnyUnrecoverableErrorsInThisFunction())
     DiscardCleanupsInEvaluationContext();
-  assert(!Cleanup.exprNeedsCleanups() &&
+  assert(!Cleanup.cleanupsHaveSideEffects() &&
          "cleanups within block not correctly bound!");
   PopExpressionEvaluationContext();
 

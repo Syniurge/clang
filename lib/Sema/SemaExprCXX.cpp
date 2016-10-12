@@ -5745,7 +5745,7 @@ Expr *Sema::MaybeCreateExprWithCleanups(Expr *SubExpr) {
 
   unsigned FirstCleanup = ExprEvalContexts.back().NumCleanupObjects;
   assert(ExprCleanupObjects.size() >= FirstCleanup);
-  assert(Cleanup.exprNeedsCleanups() ||
+  assert(Cleanup.cleanupsHaveSideEffects() ||
          ExprCleanupObjects.size() == FirstCleanup);
   if (!Cleanup.exprNeedsCleanups())
     return SubExpr;
