@@ -24,6 +24,7 @@
 #include "clang/Sema/Lookup.h"
 #include "clang/Sema/PrettyDeclStackTrace.h"
 #include "clang/Sema/Template.h"
+#include <unordered_map>
 
 using namespace clang;
 
@@ -3734,6 +3735,20 @@ static void InstantiateDefaultCtorDefaultArgs(Sema &S,
 
 // CALYPSO
 namespace {
+    bool isIncompleteOrZeroLengthArrayType(ASTContext &Context, QualType T) {
+        if (T->isIncompleteArrayType())
+            return true;
+
+        while (const ConstantArrayType *ArrayT = Context.getAsConstantArrayType(T)) {
+            if (!ArrayT->getSize())
+            return true;
+
+            T = ArrayT->getElementType();
+        }
+
+        return false;
+    }
+
     class InstantiatedFuncFinalChecker 
         : public RecursiveASTVisitor<InstantiatedFuncFinalChecker>
     {
@@ -3741,55 +3756,33 @@ namespace {
         Sema& S;
         FunctionDecl* Checked;
 
-        std::vector<FunctionDecl*> Deps;
-
-        static thread_local std::map<FunctionDecl*, InstantiatedFuncFinalChecker*> AllCheckers;
-
     public:
         InstantiatedFuncFinalChecker(Sema &S, FunctionDecl* Checked)
-            : S(S), Checked(Checked) {
-            AllCheckers[Checked] = this;
-        }
+            : S(S), Checked(Checked) {}
 
-        ~InstantiatedFuncFinalChecker() {
-            AllCheckers.erase(Checked);
-        }
-
-        void run() {
-            TraverseStmt(Checked->getBody());
-
-            if (auto Ctor = dyn_cast<CXXConstructorDecl>(Checked))
-                for (auto& Init : Ctor->inits())
-                    TraverseStmt(Init->getInit());
-        }
-
-        void markInvalid() {
-            if (Checked->isInvalidDecl())
+        static void markInvalid(FunctionDecl* Func) {
+            if (Func->isInvalidDecl())
                 return;
 
-            Checked->setInvalidDecl();
-            for (auto Dep: Deps)
-                Dep->setInvalidDecl();
+            Func->setInvalidDecl();
+            for (auto Dep : Deps[Func])
+                markInvalid(Dep);
         }
 
         bool Check(Decl* D) {
-            if (auto FD = dyn_cast<FunctionDecl>(D)) {
-                bool isBeingChecked = AllCheckers.count(FD);
-
-                if (!isBeingChecked && S.PendingChecks.count(FD))
-                    InstantiatedFuncFinalChecker(S, FD).run();
-
-                assert(FD->hasBody()
-                    || (!FD->isImplicitlyInstantiable() || !FD->getTemplateInstantiationPattern()->hasBody()));
-
-                if (FD->isInvalidDecl()) {
-                    markInvalid();
+            if (D->isInvalidDecl()) {
+                    markInvalid(Checked);
                     return false;
-                }
-
-                if (isBeingChecked)
-                    AllCheckers[FD]->Deps.push_back(Checked);
             }
+
+            auto FD = dyn_cast<FunctionDecl>(D);
+            if (FD && S.PendingChecks.count(FD)) {
+                assert(FD->hasBody() || !FD->isImplicitlyInstantiable()
+                    || !FD->getTemplateInstantiationPattern()->hasBody());
+
+                Deps[FD].push_back(Checked);
+            }
+
             return true;
         }
 
@@ -3805,6 +3798,13 @@ namespace {
             return Check(E->getConstructor());
         }
 
+        bool VisitVarDecl(VarDecl *D) {
+            if (auto RT = D->getType()->getAs<RecordType>())
+                if (auto Dtor = S.LookupDestructor(cast<CXXRecordDecl>(RT->getDecl())))
+                    Check(Dtor);
+            return true;
+        }
+
         // Skip unevaluated contexts
         bool VisitCXXNoexceptExpr(CXXNoexceptExpr *) { return false; }
         bool VisitCXXTypeidExpr(CXXTypeidExpr *) { return false; }
@@ -3814,17 +3814,68 @@ namespace {
         bool VisitDecltypeType(DecltypeType *) { return false; }
         bool VisitTypeOfType(TypeOfType *) { return false; }
         bool VisitTypeOfExprType(TypeOfExprType *) { return false; }
+
+        static thread_local std::unordered_map<FunctionDecl*, std::vector<FunctionDecl*>> Deps;
+
+        void run() {
+            TraverseStmt(Checked->getBody());
+
+            if (auto Ctor = dyn_cast<CXXConstructorDecl>(Checked))
+            {
+                for (auto& Init : Ctor->inits())
+                    TraverseStmt(Init->getInit());
+            }
+            else if (auto Dtor = dyn_cast<CXXDestructorDecl>(Checked))
+            {
+                auto& Context = S.getASTContext();
+                auto ClassDecl = Dtor->getParent();
+
+                for (auto *Field : ClassDecl->fields()) {
+                    if (Field->isInvalidDecl()) {
+                        markInvalid(Checked);
+                        return;
+                    }
+
+                    if (isIncompleteOrZeroLengthArrayType(Context, Field->getType()))
+                        continue;
+
+                    QualType FieldType = Context.getBaseElementType(Field->getType());
+
+                    const RecordType* RT = FieldType->getAs<RecordType>();
+                    if (!RT)
+                        continue;
+
+                    CXXRecordDecl *FieldClassDecl = cast<CXXRecordDecl>(RT->getDecl());
+                    if (FieldClassDecl->isInvalidDecl()) {
+                        markInvalid(Checked);
+                        return;
+                    }
+                    if (FieldClassDecl->hasIrrelevantDestructor())
+                        continue;
+                    // The destructor for an implicit anonymous union member is never invoked.
+                    if (FieldClassDecl->isUnion() && FieldClassDecl->isAnonymousStructOrUnion())
+                        continue;
+
+                    CXXDestructorDecl *FieldDtor = S.LookupDestructor(FieldClassDecl);
+                    Check(FieldDtor);
+                }
+            }
+        }
     };
 
-    thread_local std::map<FunctionDecl*, InstantiatedFuncFinalChecker*> InstantiatedFuncFinalChecker::AllCheckers;
+    thread_local std::unordered_map<FunctionDecl*, std::vector<FunctionDecl*>> InstantiatedFuncFinalChecker::Deps;
 }
 
 void Sema::PerformPendingChecks()
 {
     assert(PendingInstantiations.empty());
+    InstantiatedFuncFinalChecker::Deps.reserve(PendingChecks.size());
+
     for (auto Func: PendingChecks)
         InstantiatedFuncFinalChecker(*this, Func).run();
+
     PendingChecks.clear();
+    InstantiatedFuncFinalChecker::Deps.clear();
 }
 
 /// \brief Instantiate the definition of the given function from its
