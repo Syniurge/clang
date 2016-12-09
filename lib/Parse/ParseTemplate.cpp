@@ -1386,6 +1386,9 @@ void Parser::ParseLateTemplatedFuncDef(LateParsedTemplate &LPT) {
   Sema::ContextRAII FunctionSavedContext(Actions,
                                          Actions.getContainingDC(FunD));
 
+  EnterExpressionEvaluationContext EvalContext(Actions,
+      Sema::PotentiallyEvaluated); // CALYPSO Clang BUG, without this Cleanup doesn't get reset, and an assert gets triggered
+
   Actions.ActOnStartOfFunctionDef(getCurScope(), FunD);
 
   if (Tok.is(tok::kw_try)) {
