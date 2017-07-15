@@ -1259,6 +1259,10 @@ private:
   /// Check whether we can use a "simpler", more core exceptions personality
   /// function.
   void SimplifyPersonality();
+
+public:
+  // CALYPSO
+  const clang::CXXRecordDecl* RecordBeingDefined = nullptr;
 };
 }  // end namespace CodeGen
 }  // end namespace clang
