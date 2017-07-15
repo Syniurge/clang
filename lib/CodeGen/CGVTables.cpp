@@ -798,6 +798,10 @@ CodeGenModule::getVTableLinkage(const CXXRecordDecl *RD) {
   if (!RD->isExternallyVisible())
     return llvm::GlobalVariable::InternalLinkage;
 
+  // CALYPSO
+  if (RD != RecordBeingDefined)
+    return llvm::GlobalVariable::ExternalLinkage;
+
   // We're at the end of the translation unit, so the current key
   // function is fully correct.
   const CXXMethodDecl *keyFunction = Context.getCurrentKeyFunction(RD);
@@ -913,6 +917,10 @@ CodeGenVTables::GenerateClassData(const CXXRecordDecl *RD) {
 /// vtables when unnecessary.
 bool CodeGenVTables::isVTableExternal(const CXXRecordDecl *RD) {
   assert(RD->isDynamicClass() && "Non-dynamic classes have no VTable.");
+
+  // CALYPSO
+  if (RD != CGM.RecordBeingDefined)
+      return true;
 
   // We always synthesize vtables if they are needed in the MS ABI. MSVC doesn't
   // emit them even if there is an explicit template instantiation.
