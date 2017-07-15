@@ -847,6 +847,10 @@ CodeGenVTables::GenerateClassData(const CXXRecordDecl *RD) {
 bool CodeGenVTables::isVTableExternal(const CXXRecordDecl *RD) {
   assert(RD->isDynamicClass() && "Non-dynamic classes have no VTable.");
 
+  // CALYPSO
+  if (RD != CGM.RecordBeingDefined)
+      return true;
+
   // We always synthesize vtables if they are needed in the MS ABI. MSVC doesn't
   // emit them even if there is an explicit template instantiation.
   if (CGM.getTarget().getCXXABI().isMicrosoft())

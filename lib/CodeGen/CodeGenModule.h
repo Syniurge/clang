@@ -1354,6 +1354,10 @@ private:
   void ConstructDefaultFnAttrList(StringRef Name, bool HasOptnone,
                                   bool AttrOnCallSite,
                                   llvm::AttrBuilder &FuncAttrs);
+
+public:
+  // CALYPSO
+  const clang::CXXRecordDecl* RecordBeingDefined = nullptr;
 };
 }  // end namespace CodeGen
 }  // end namespace clang
