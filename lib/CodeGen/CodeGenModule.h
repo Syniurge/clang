@@ -1432,6 +1432,10 @@ private:
 
   llvm::Metadata *CreateMetadataIdentifierImpl(QualType T, MetadataTypeMap &Map,
                                                StringRef Suffix);
+
+public:
+  // CALYPSO
+  const clang::CXXRecordDecl* RecordBeingDefined = nullptr;
 };
 
 }  // end namespace CodeGen
