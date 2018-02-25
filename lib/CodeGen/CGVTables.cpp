@@ -731,6 +731,10 @@ CodeGenModule::getVTableLinkage(const CXXRecordDecl *RD) {
   if (!RD->isExternallyVisible())
     return llvm::GlobalVariable::InternalLinkage;
 
+  // CALYPSO
+  if (RD != RecordBeingDefined)
+    return llvm::GlobalVariable::ExternalLinkage;
+
   // We're at the end of the translation unit, so the current key
   // function is fully correct.
   const CXXMethodDecl *keyFunction = Context.getCurrentKeyFunction(RD);
