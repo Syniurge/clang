@@ -48,7 +48,9 @@
 #include <string>
 #include <utility>
 
-class Dsymbol; // CALYPSO
+namespace cpp {
+struct DData; // CALYPSO
+}
 
 namespace clang {
 
@@ -256,7 +258,7 @@ class NamedDecl : public Decl {
   virtual void anchor();
 
 public: // CALYPSO
-  Dsymbol* dsym = nullptr;
+  cpp::DData* d = nullptr;
 
 private:
   NamedDecl *getUnderlyingDeclImpl() LLVM_READONLY;
