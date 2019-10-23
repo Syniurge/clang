@@ -1541,6 +1541,8 @@ void Parser::ParseLateTemplatedFuncDef(LateParsedTemplate &LPT) {
    TemplateParamScopeStack.rbegin();
   for (; I != TemplateParamScopeStack.rend(); ++I)
     delete *I;
+
+  PP.RemoveTopOfLexerStack(); // CALYPSO Clang BUG: there was no exit after EnterTokenStream, the PP.IncludeMacroStack kept growing and CurTokenLexer wasn't reset
 }
 
 /// Lex a delayed template function for late parsing.
