@@ -1783,7 +1783,8 @@ llvm::GlobalVariable *MicrosoftCXXABI::getAddrOfVTable(const CXXRecordDecl *RD,
   // Because of this unique behavior, we maintain this logic here instead of
   // getVTableLinkage.
   llvm::GlobalValue::LinkageTypes VFTableLinkage =
-      RD->hasAttr<DLLImportAttr>() ? llvm::GlobalValue::LinkOnceODRLinkage
+      (RD->hasAttr<DLLImportAttr>() && RD == CGM.RecordBeingDefined /* CALYPSO */)
+                                   ? llvm::GlobalValue::LinkOnceODRLinkage
                                    : CGM.getVTableLinkage(RD);
   bool VFTableComesFromAnotherTU =
       llvm::GlobalValue::isAvailableExternallyLinkage(VFTableLinkage) ||
