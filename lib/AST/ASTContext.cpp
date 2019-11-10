@@ -9652,7 +9652,7 @@ static GVALinkage basicGVALinkageForFunction(const ASTContext &Context,
   // use, no matter whether they've been explicitly instantiated etc.
   if (const auto *MD = dyn_cast<CXXMethodDecl>(FD))
     if (!MD->isUserProvided())
-      return GVA_DiscardableODR;
+      return /*GVA_DiscardableODR*/ GVA_StrongODR; // CALYPSO
 
   GVALinkage External;
   switch (FD->getTemplateSpecializationKind()) {
@@ -9674,7 +9674,7 @@ static GVALinkage basicGVALinkageForFunction(const ASTContext &Context,
     return GVA_AvailableExternally;
 
   case TSK_ImplicitInstantiation:
-    External = GVA_DiscardableODR;
+    External = /*GVA_DiscardableODR*/ GVA_StrongODR; // CALYPSO
     break;
   }
 
