@@ -798,10 +798,6 @@ CodeGenModule::getVTableLinkage(const CXXRecordDecl *RD) {
   if (!RD->isExternallyVisible())
     return llvm::GlobalVariable::InternalLinkage;
 
-  // CALYPSO
-  if (RD != RecordBeingDefined)
-    return llvm::GlobalVariable::ExternalLinkage;
-
   // We're at the end of the translation unit, so the current key
   // function is fully correct.
   const CXXMethodDecl *keyFunction = Context.getCurrentKeyFunction(RD);
@@ -811,6 +807,9 @@ CodeGenModule::getVTableLinkage(const CXXRecordDecl *RD) {
     const FunctionDecl *def = nullptr;
     if (keyFunction->hasBody(def))
       keyFunction = cast<CXXMethodDecl>(def);
+
+    if (RD != RecordBeingDefined) // CALYPSO
+        def = nullptr; // consider the vtable external
 
     switch (keyFunction->getTemplateSpecializationKind()) {
       case TSK_Undeclared:
