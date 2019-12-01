@@ -1659,9 +1659,9 @@ void MicrosoftCXXABI::emitVTableDefinitions(CodeGenVTables &CGVT,
     if (VTable->hasInitializer())
       continue;
 
-    if (VTable->getLinkage() == llvm::GlobalValue::ExternalLinkage) {
-        // CALYPSO HACK: getAddrOfVTable has two different behaviors, depending on whether the vtable is considered external or has to be emitted. If getAddrOfVTable() was called before, the previous constant needs to be erased and getAddrOfVTable() called again (it will create an internal constant and a global alias taking the vtable name)
-      VFTableIdTy ID(RD, Info->FullOffsetInMDC);
+    VFTableIdTy ID(RD, Info->FullOffsetInMDC);
+    if (CGM.RecordBeingDefined == RD && !isa<llvm::GlobalAlias>(VFTablesMap[ID])) {
+      // CALYPSO HACK: getAddrOfVTable has two different behaviors, depending on whether the vtable is considered external or has to be emitted. If getAddrOfVTable() was called before, the previous constant needs to be erased and getAddrOfVTable() called again (it will create an internal constant and a global alias taking the vtable name)
       VTablesMap.erase(ID);
       VTable->setName("");
 

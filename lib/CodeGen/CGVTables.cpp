@@ -808,9 +808,6 @@ CodeGenModule::getVTableLinkage(const CXXRecordDecl *RD) {
     if (keyFunction->hasBody(def))
       keyFunction = cast<CXXMethodDecl>(def);
 
-    if (RD != RecordBeingDefined) // CALYPSO
-        def = nullptr; // consider the vtable external
-
     switch (keyFunction->getTemplateSpecializationKind()) {
       case TSK_Undeclared:
       case TSK_ExplicitSpecialization:
@@ -916,10 +913,6 @@ CodeGenVTables::GenerateClassData(const CXXRecordDecl *RD) {
 /// vtables when unnecessary.
 bool CodeGenVTables::isVTableExternal(const CXXRecordDecl *RD) {
   assert(RD->isDynamicClass() && "Non-dynamic classes have no VTable.");
-
-  // CALYPSO
-  if (RD != CGM.RecordBeingDefined)
-      return true;
 
   // We always synthesize vtables if they are needed in the MS ABI. MSVC doesn't
   // emit them even if there is an explicit template instantiation.
